@@ -1,0 +1,13 @@
+{
+  "name": "zufang-platform",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["h5", "admin", "server"],
+  "scripts": {
+    "dev:h5": "npm run dev -w h5",
+    "dev:admin": "npm run dev -w admin",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w h5 && npm run build -w admin",
+    "test": "npm run test -w server"
+  }
+}

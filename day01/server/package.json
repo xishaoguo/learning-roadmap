@@ -1,0 +1,6 @@
+{
+  "name":"server","private":true,"version":"1.0.0","type":"module","main":"src/index.js",
+  "scripts":{"start":"node src/index.js","dev":"node --watch src/index.js","test":"node --test"},
+  "dependencies":{"bcryptjs":"latest","cors":"latest","dotenv":"latest","express":"latest","helmet":"latest","jsonwebtoken":"latest","morgan":"latest","pg":"latest"},
+  "devDependencies":{}
+}

@@ -1,0 +1,6 @@
+{
+  "name":"admin","private":true,"version":"1.0.0","type":"module",
+  "scripts":{"dev":"vite --port 5174","build":"vite build","preview":"vite preview --port 5174"},
+  "dependencies":{"@ant-design/icons":"latest","@vitejs/plugin-react":"latest","antd":"latest","dayjs":"latest","react":"latest","react-dom":"latest","vite":"latest"},
+  "devDependencies":{}
+}

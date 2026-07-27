@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {buildListingFilters,pickListing} from '../src/helpers.js';
+test('builds filters with safe placeholders',()=>{const result=buildListingFilters({keyword:'阳光',rentType:'整租',rooms:'2',price:'5000-8000'});assert.match(result.where,/title ILIKE \$1/);assert.match(result.where,/rent_type=\$4/);assert.deepEqual(result.values,['%阳光%','%阳光%','%阳光%','整租',2,5000,8000])});
+test('normalizes listing payload',()=>{const result=pickListing({title:' A ',rentType:'整租',price:'6000',area:'80',tags:['精装'],status:'other'});assert.equal(result.title,'A');assert.equal(result.price,6000);assert.equal(result.status,'published')});
