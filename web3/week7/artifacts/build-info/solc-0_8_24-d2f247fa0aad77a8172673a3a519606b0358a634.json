@@ -1,0 +1,42 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_24-d2f247fa0aad77a8172673a3a519606b0358a634",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/ErxiaoToken.sol": "project/contracts/ErxiaoToken.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/ErxiaoToken.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title erxiao Test Token\n/// @notice A minimal ERC-20 token for the Sepolia test network.\ncontract ErxiaoToken {\n    string public constant name = \"erxiao\";\n    string public constant symbol = \"ERXIAO\";\n    uint8 public constant decimals = 18;\n\n    uint256 public totalSupply;\n    mapping(address => uint256) public balanceOf;\n    mapping(address => mapping(address => uint256)) public allowance;\n\n    event Transfer(address indexed from, address indexed to, uint256 value);\n    event Approval(address indexed owner, address indexed spender, uint256 value);\n\n    constructor(uint256 initialSupply) {\n        _mint(msg.sender, initialSupply);\n    }\n\n    function transfer(address to, uint256 value) external returns (bool) {\n        _transfer(msg.sender, to, value);\n        return true;\n    }\n\n    function approve(address spender, uint256 value) external returns (bool) {\n        allowance[msg.sender][spender] = value;\n        emit Approval(msg.sender, spender, value);\n        return true;\n    }\n\n    function transferFrom(address from, address to, uint256 value) external returns (bool) {\n        uint256 permitted = allowance[from][msg.sender];\n        require(permitted >= value, \"ERC20: insufficient allowance\");\n        if (permitted != type(uint256).max) {\n            allowance[from][msg.sender] = permitted - value;\n            emit Approval(from, msg.sender, allowance[from][msg.sender]);\n        }\n        _transfer(from, to, value);\n        return true;\n    }\n\n    function _mint(address to, uint256 value) private {\n        totalSupply += value;\n        balanceOf[to] += value;\n        emit Transfer(address(0), to, value);\n    }\n\n    function _transfer(address from, address to, uint256 value) private {\n        require(to != address(0), \"ERC20: transfer to zero address\");\n        require(balanceOf[from] >= value, \"ERC20: insufficient balance\");\n        balanceOf[from] -= value;\n        balanceOf[to] += value;\n        emit Transfer(from, to, value);\n    }\n}\n"
+      }
+    }
+  }
+}

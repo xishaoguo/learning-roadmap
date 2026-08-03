@@ -1,0 +1,56 @@
+.app-shell {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 24px;
+}
+
+.wallet-card {
+  width: min(100%, 460px);
+  padding: 48px;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgb(15 23 42 / 10%);
+  text-align: center;
+}
+
+.eyebrow { color: #7c3aed; font-size: .78rem; font-weight: 800; letter-spacing: .12em; }
+.wallet-card h1 { margin: 16px 0 12px; color: #172033; font-size: clamp(2rem, 7vw, 2.8rem); letter-spacing: -.04em; }
+.intro { color: #667085; line-height: 1.7; }
+
+.connect-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 32px;
+  padding: 16px 20px;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  background: #7c3aed;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform .2s, background .2s;
+}
+
+.connect-button:hover:not(:disabled) { background: #6d28d9; transform: translateY(-2px); }
+.connect-button:disabled { cursor: wait; opacity: .7; }
+.metamask-mark { color: #f6851b; font-size: 1.35rem; }
+.message { min-height: 1.5em; margin: 22px 0 0; color: #475467; font-size: .92rem; }
+
+.wallet-info { display: flex; align-items: center; gap: 14px; margin-top: 32px; padding: 20px; border-radius: 14px; background: #f5f3ff; text-align: left; }
+.status-dot { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 5px #dcfce7; }
+.wallet-label, .network { color: #667085; font-size: .82rem; }
+.wallet-info strong { display: block; margin: 4px 0; color: #172033; }
+.token-actions { margin-top: 22px; }
+.token-title { color: #475467; font-size: .88rem; font-weight: 650; }
+.secondary-button { width: 100%; margin-top: 12px; padding: 12px; border: 1px solid #c4b5fd; border-radius: 12px; color: #6d28d9; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.disconnect-button { border-color: #fecaca; color: #b42318; }
+.token-actions .connect-button { margin-top: 12px; }
+.token-address { margin: 14px 0 0; overflow-wrap: anywhere; color: #667085; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .75rem; }
+
+@media (max-width: 480px) { .wallet-card { padding: 36px 24px; } }
