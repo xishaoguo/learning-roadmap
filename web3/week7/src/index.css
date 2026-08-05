@@ -1,4 +1,41 @@
-:root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f8fafc; font-synthesis: none; text-rendering: optimizeLegibility; }
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+:root {
+  font-family: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #1e424d;
+  background: #fff9ee;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: #1e424d;
+  --ink-soft: #45636b;
+  --paper: #fff9ee;
+  --paper-deep: #f7efe1;
+  --sage: #3f7659;
+  --sage-soft: #dfebd7;
+  --apricot: #d47b45;
+  --apricot-soft: #f8dfc4;
+  --purple: #705ca5;
+  --danger: #9d3f36;
+  --line: rgb(30 66 77 / 16%);
+  --shadow: 8px 9px 0 rgb(30 66 77 / 96%);
+  --card-radius: 30px;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; }
-button { font-family: inherit; }
+html { min-width: 320px; scroll-behavior: smooth; }
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 7% 4%, rgb(248 211 168 / 76%), transparent 23rem),
+    radial-gradient(circle at 93% 11%, rgb(207 226 195 / 80%), transparent 24rem),
+    linear-gradient(180deg, #fffaf0 0%, #f8f0e2 55%, #fffaf2 100%);
+}
+
+button, input { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 4px solid rgb(112 92 165 / 34%); outline-offset: 3px; }
+h1, h2, h3, p, dl { margin-block-start: 0; }
+ul, ol { margin: 0; padding: 0; }
+li { list-style: none; }
