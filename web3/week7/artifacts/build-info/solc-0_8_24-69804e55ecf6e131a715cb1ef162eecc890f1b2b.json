@@ -1,0 +1,54 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_24-69804e55ecf6e131a715cb1ef162eecc890f1b2b",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/ErxiaoNotebook.sol": "project/contracts/ErxiaoNotebook.sol",
+    "contracts/ErxiaoToken.sol": "project/contracts/ErxiaoToken.sol",
+    "contracts/WalletStatus.sol": "project/contracts/WalletStatus.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "paris",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/ErxiaoNotebook.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title ErxiaoNotebook\n/// @notice A public learning journal for the Sepolia version of Erxiao Lab.\n/// @dev Notes are grouped by wallet. Removal only changes the current contract state;\n///      previous content remains visible in transaction history.\ncontract ErxiaoNotebook {\n    uint256 public constant MAX_CONTENT_BYTES = 512;\n\n    struct Note {\n        uint256 id;\n        string content;\n        uint64 createdAt;\n        uint64 updatedAt;\n        bool removed;\n    }\n\n    mapping(address author => Note[] notes) private notesByAuthor;\n\n    error EmptyContent();\n    error ContentTooLong(uint256 actualLength, uint256 maximumLength);\n    error NoteNotFound(uint256 id);\n    error NoteAlreadyRemoved(uint256 id);\n\n    event NoteAdded(\n        address indexed author,\n        uint256 indexed id,\n        string content,\n        uint64 timestamp\n    );\n    event NoteEdited(\n        address indexed author,\n        uint256 indexed id,\n        string content,\n        uint64 timestamp\n    );\n    event NoteRemoved(\n        address indexed author,\n        uint256 indexed id,\n        uint64 timestamp\n    );\n\n    modifier validContent(string calldata content) {\n        uint256 contentLength = bytes(content).length;\n        if (contentLength == 0) revert EmptyContent();\n        if (contentLength > MAX_CONTENT_BYTES) {\n            revert ContentTooLong(contentLength, MAX_CONTENT_BYTES);\n        }\n        _;\n    }\n\n    modifier existingNote(uint256 id) {\n        if (id >= notesByAuthor[msg.sender].length) revert NoteNotFound(id);\n        if (notesByAuthor[msg.sender][id].removed) {\n            revert NoteAlreadyRemoved(id);\n        }\n        _;\n    }\n\n    function addNote(\n        string calldata content\n    ) external validContent(content) returns (uint256 id) {\n        id = notesByAuthor[msg.sender].length;\n        uint64 timestamp = uint64(block.timestamp);\n        notesByAuthor[msg.sender].push(\n            Note({\n                id: id,\n                content: content,\n                createdAt: timestamp,\n                updatedAt: timestamp,\n                removed: false\n            })\n        );\n        emit NoteAdded(msg.sender, id, content, timestamp);\n    }\n\n    function editNote(\n        uint256 id,\n        string calldata content\n    ) external validContent(content) existingNote(id) {\n        Note storage note = notesByAuthor[msg.sender][id];\n        note.content = content;\n        note.updatedAt = uint64(block.timestamp);\n        emit NoteEdited(msg.sender, id, content, note.updatedAt);\n    }\n\n    function removeNote(uint256 id) external existingNote(id) {\n        Note storage note = notesByAuthor[msg.sender][id];\n        note.removed = true;\n        note.updatedAt = uint64(block.timestamp);\n        emit NoteRemoved(msg.sender, id, note.updatedAt);\n    }\n\n    function getNotes(address author) external view returns (Note[] memory) {\n        return notesByAuthor[author];\n    }\n\n    function noteCount(address author) external view returns (uint256) {\n        return notesByAuthor[author].length;\n    }\n}\n"
+      },
+      "project/contracts/ErxiaoToken.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title erxiao Test Token\n/// @notice A minimal ERC-20 token for the Sepolia test network.\ncontract ErxiaoToken {\n    string public constant name = \"erxiao\";\n    string public constant symbol = \"ERXIAO\";\n    uint8 public constant decimals = 18;\n\n    uint256 public totalSupply;\n    mapping(address => uint256) public balanceOf;\n    mapping(address => mapping(address => uint256)) public allowance;\n\n    event Transfer(address indexed from, address indexed to, uint256 value);\n    event Approval(address indexed owner, address indexed spender, uint256 value);\n\n    constructor(uint256 initialSupply) {\n        _mint(msg.sender, initialSupply);\n    }\n\n    function transfer(address to, uint256 value) external returns (bool) {\n        _transfer(msg.sender, to, value);\n        return true;\n    }\n\n    function approve(address spender, uint256 value) external returns (bool) {\n        allowance[msg.sender][spender] = value;\n        emit Approval(msg.sender, spender, value);\n        return true;\n    }\n\n    function transferFrom(address from, address to, uint256 value) external returns (bool) {\n        uint256 permitted = allowance[from][msg.sender];\n        require(permitted >= value, \"ERC20: insufficient allowance\");\n        if (permitted != type(uint256).max) {\n            allowance[from][msg.sender] = permitted - value;\n            emit Approval(from, msg.sender, allowance[from][msg.sender]);\n        }\n        _transfer(from, to, value);\n        return true;\n    }\n\n    function _mint(address to, uint256 value) private {\n        totalSupply += value;\n        balanceOf[to] += value;\n        emit Transfer(address(0), to, value);\n    }\n\n    function _transfer(address from, address to, uint256 value) private {\n        require(to != address(0), \"ERC20: transfer to zero address\");\n        require(balanceOf[from] >= value, \"ERC20: insufficient balance\");\n        balanceOf[from] -= value;\n        balanceOf[to] += value;\n        emit Transfer(from, to, value);\n    }\n}\n"
+      },
+      "project/contracts/WalletStatus.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title WalletStatus\n/// @notice A small example contract for the Week 7 wallet-connection project.\ncontract WalletStatus {\n    mapping(address => bool) public hasCheckedIn;\n\n    event CheckedIn(address indexed account);\n\n    function checkIn() external {\n        hasCheckedIn[msg.sender] = true;\n        emit CheckedIn(msg.sender);\n    }\n}\n"
+      }
+    }
+  }
+}

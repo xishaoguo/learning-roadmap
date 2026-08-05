@@ -3,10 +3,12 @@ import {
   BrowserProvider,
   Contract,
   ContractFactory,
+  formatEther,
   formatUnits,
   isAddress,
   parseUnits,
 } from 'ethers'
+import notebookArtifact from '../artifacts/contracts/ErxiaoNotebook.sol/ErxiaoNotebook.json'
 import erxiaoArtifact from '../artifacts/contracts/ErxiaoToken.sol/ErxiaoToken.json'
 import './App.css'
 
@@ -14,11 +16,18 @@ const SEPOLIA_CHAIN_ID = '11155111'
 const SEPOLIA_CHAIN_HEX = '0xaa36a7'
 const META_MASK_RDNS = 'io.metamask'
 const TOKEN_KEY = 'erxiao-token-address'
+const NOTEBOOK_KEY = 'erxiao-notebook-address'
 const INITIAL_SUPPLY = '1000000'
+const MAX_NOTE_BYTES = 512
 
 const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`
 const displayTokenAmount = (value) =>
   new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 4 }).format(Number(value || 0))
+const displayEthAmount = (value) => Number(value || 0).toFixed(6)
+const displayNoteTime = (timestamp) => new Intl.DateTimeFormat('zh-CN', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+}).format(new Date(Number(timestamp) * 1000))
 
 function Icon({ name }) {
   const paths = {
@@ -28,6 +37,7 @@ function Icon({ name }) {
     rocket: <><path d="M14 4c2.6-2.6 5.8-2 5.8-2s.6 3.2-2 5.8l-5.1 5.1-4-4Z" /><path d="m7.7 9-3.4.8L2 12l5 1m4 4 1 5 2.2-2.3.8-3.4M9 15l-3 3" /><circle cx="15.4" cy="6.4" r="1.4" /></>,
     coin: <><ellipse cx="12" cy="6" rx="8" ry="3.5" /><path d="M4 6v6c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V6M4 12v6c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5v-6" /></>,
     send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>,
+    notebook: <><path d="M5 3h13a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M7 3v18M10 8h6M10 12h6M10 16h4" /></>,
     code: <><path d="m8 9-4 3 4 3m8-6 4 3-4 3m-2-9-4 12" /></>,
   }
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>
@@ -54,6 +64,7 @@ function App() {
   const [account, setAccount] = useState('')
   const [chainId, setChainId] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
+  const [nativeBalance, setNativeBalance] = useState('')
   const [isDeploying, setIsDeploying] = useState(false)
   const [tokenAddress, setTokenAddress] = useState(
     () => window.localStorage.getItem(TOKEN_KEY) || '',
@@ -63,6 +74,16 @@ function App() {
   const [recipient, setRecipient] = useState('')
   const [transferAmount, setTransferAmount] = useState('')
   const [isTransferring, setIsTransferring] = useState(false)
+  const [notebookAddress, setNotebookAddress] = useState(
+    () => window.localStorage.getItem(NOTEBOOK_KEY) || '',
+  )
+  const [notes, setNotes] = useState([])
+  const [noteDraft, setNoteDraft] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState(null)
+  const [isDeployingNotebook, setIsDeployingNotebook] = useState(false)
+  const [isSavingNote, setIsSavingNote] = useState(false)
+  const [removingNoteId, setRemovingNoteId] = useState(null)
+  const [fundingWarning, setFundingWarning] = useState('')
   const [message, setMessage] = useState('')
   const [transactionHash, setTransactionHash] = useState('')
   const [copied, setCopied] = useState(false)
@@ -71,6 +92,7 @@ function App() {
   const explorerAddressUrl = tokenAddress
     ? `https://sepolia.etherscan.io/address/${tokenAddress}`
     : ''
+  const noteByteCount = new TextEncoder().encode(noteDraft).length
 
   useEffect(() => {
     const handleProviderAnnouncement = (event) => {
@@ -133,9 +155,52 @@ function App() {
     }
   }, [account, isSepolia, metaMask, tokenAddress])
 
+  const loadNativeBalance = useCallback(async () => {
+    if (!metaMask || !account || !isSepolia) {
+      setNativeBalance('')
+      return
+    }
+    try {
+      const provider = new BrowserProvider(metaMask)
+      setNativeBalance(formatEther(await provider.getBalance(account)))
+    } catch {
+      setNativeBalance('')
+    }
+  }, [account, isSepolia, metaMask])
+
   useEffect(() => {
     loadTokenData()
   }, [loadTokenData])
+
+  useEffect(() => {
+    loadNativeBalance()
+  }, [loadNativeBalance])
+
+  const loadNotebookData = useCallback(async () => {
+    if (!metaMask || !account || !notebookAddress || !isSepolia) {
+      setNotes([])
+      return
+    }
+    try {
+      const provider = new BrowserProvider(metaMask)
+      const notebook = new Contract(notebookAddress, notebookArtifact.abi, provider)
+      const chainNotes = await notebook.getNotes(account)
+      setNotes(chainNotes.map((note) => ({
+        id: Number(note.id),
+        content: note.content,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        removed: note.removed,
+      })))
+    } catch {
+      setNotes([])
+      setMessage('无法读取链上学习笔记，请确认记事本地址属于 Sepolia。')
+    }
+  }, [account, isSepolia, metaMask, notebookAddress])
+
+  useEffect(() => {
+    loadNotebookData()
+  }, [loadNotebookData])
 
   const connectWallet = async () => {
     if (!metaMask) {
@@ -204,6 +269,30 @@ function App() {
     }
   }
 
+  const hasEnoughDeploymentFunds = async (provider, factory, deployArguments) => {
+    const deployRequest = await factory.getDeployTransaction(...deployArguments)
+    const [estimatedGas, feeData, balance] = await Promise.all([
+      provider.estimateGas({ ...deployRequest, from: account }),
+      provider.getFeeData(),
+      provider.getBalance(account),
+    ])
+    const feePerGas = feeData.maxFeePerGas ?? feeData.gasPrice
+    setNativeBalance(formatEther(balance))
+    if (!feePerGas) return true
+
+    // Keep a small buffer because the wallet may raise the gas limit before signing.
+    const requiredBalance = (estimatedGas * feePerGas * 120n) / 100n
+    if (balance >= requiredBalance) {
+      setFundingWarning('')
+      return true
+    }
+
+    const warning = `当前余额 ${displayEthAmount(formatEther(balance))} SepoliaETH，预计至少需要 ${displayEthAmount(formatEther(requiredBalance))} SepoliaETH。请先领取测试 ETH。`
+    setFundingWarning(warning)
+    setMessage(warning)
+    return false
+  }
+
   const deployErxiao = async () => {
     if (!metaMask || !account || !isSepolia) return
     try {
@@ -213,7 +302,9 @@ function App() {
       const provider = new BrowserProvider(metaMask)
       const signer = await provider.getSigner()
       const factory = new ContractFactory(erxiaoArtifact.abi, erxiaoArtifact.bytecode, signer)
-      const token = await factory.deploy(parseUnits(INITIAL_SUPPLY, 18))
+      const initialSupply = parseUnits(INITIAL_SUPPLY, 18)
+      if (!await hasEnoughDeploymentFunds(provider, factory, [initialSupply])) return
+      const token = await factory.deploy(initialSupply)
       const deploymentTransaction = token.deploymentTransaction()
       setTransactionHash(deploymentTransaction?.hash || '')
       setMessage('交易已广播，正在等待 Sepolia 确认…')
@@ -281,6 +372,103 @@ function App() {
     }
   }
 
+  const deployNotebook = async () => {
+    if (!metaMask || !account || !isSepolia) return
+    try {
+      setIsDeployingNotebook(true)
+      setTransactionHash('')
+      setMessage('请在 MetaMask 中确认部署 ErxiaoNotebook。')
+      const provider = new BrowserProvider(metaMask)
+      const signer = await provider.getSigner()
+      const factory = new ContractFactory(
+        notebookArtifact.abi,
+        notebookArtifact.bytecode,
+        signer,
+      )
+      if (!await hasEnoughDeploymentFunds(provider, factory, [])) return
+      const notebook = await factory.deploy()
+      setTransactionHash(notebook.deploymentTransaction()?.hash || '')
+      setMessage('记事本部署交易已广播，正在等待确认…')
+      await notebook.waitForDeployment()
+      const address = await notebook.getAddress()
+      setNotebookAddress(address)
+      window.localStorage.setItem(NOTEBOOK_KEY, address)
+      setMessage('ErxiaoNotebook 已部署，可以写下第一条公开学习笔记。')
+    } catch (error) {
+      setMessage(error.code === 4001 ? '你取消了记事本部署。' : (error.shortMessage || error.message || '记事本部署失败，请重试。'))
+    } finally {
+      setIsDeployingNotebook(false)
+    }
+  }
+
+  const saveNote = async (event) => {
+    event.preventDefault()
+    const content = noteDraft.trim()
+    if (!metaMask || !account || !notebookAddress || !content || noteByteCount > MAX_NOTE_BYTES) return
+    try {
+      setIsSavingNote(true)
+      setTransactionHash('')
+      const provider = new BrowserProvider(metaMask)
+      const signer = await provider.getSigner()
+      const notebook = new Contract(notebookAddress, notebookArtifact.abi, signer)
+      setMessage(editingNoteId === null ? '请确认新增笔记交易。' : '请确认修改笔记交易。')
+      const transaction = editingNoteId === null
+        ? await notebook.addNote(content)
+        : await notebook.editNote(editingNoteId, content)
+      setTransactionHash(transaction.hash)
+      setMessage('笔记交易已广播，正在等待链上确认…')
+      await transaction.wait()
+      setNoteDraft('')
+      setEditingNoteId(null)
+      await loadNotebookData()
+      setMessage(editingNoteId === null ? '学习笔记已写入 Sepolia。' : '学习笔记已更新。')
+    } catch (error) {
+      setMessage(error.code === 4001 ? '你取消了笔记交易。' : (error.shortMessage || error.message || '保存笔记失败，请重试。'))
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
+
+  const startEditingNote = (note) => {
+    setEditingNoteId(note.id)
+    setNoteDraft(note.content)
+  }
+
+  const cancelEditingNote = () => {
+    setEditingNoteId(null)
+    setNoteDraft('')
+  }
+
+  const removeNote = async (id) => {
+    if (!metaMask || !notebookAddress) return
+    try {
+      setRemovingNoteId(id)
+      setTransactionHash('')
+      setMessage('请确认软删除笔记交易；历史内容仍可从链上查询。')
+      const provider = new BrowserProvider(metaMask)
+      const signer = await provider.getSigner()
+      const notebook = new Contract(notebookAddress, notebookArtifact.abi, signer)
+      const transaction = await notebook.removeNote(id)
+      setTransactionHash(transaction.hash)
+      await transaction.wait()
+      await loadNotebookData()
+      setMessage('笔记已从当前列表移除，但区块链历史不会被删除。')
+    } catch (error) {
+      setMessage(error.code === 4001 ? '你取消了删除交易。' : (error.shortMessage || error.message || '移除笔记失败，请重试。'))
+    } finally {
+      setRemovingNoteId(null)
+    }
+  }
+
+  const forgetNotebook = () => {
+    window.localStorage.removeItem(NOTEBOOK_KEY)
+    setNotebookAddress('')
+    setNotes([])
+    setEditingNoteId(null)
+    setNoteDraft('')
+    setMessage('已移除本机记事本地址；Sepolia 上的合约和笔记不会被删除。')
+  }
+
   const copyAddress = async () => {
     try {
       await navigator.clipboard.writeText(tokenAddress)
@@ -311,6 +499,7 @@ function App() {
             <li>浏览器内编译产物部署</li>
             <li>真实链上余额</li>
             <li>测试钱包转账</li>
+            <li>公开学习笔记</li>
           </ul>
         </div>
         <div className="hero-showcase">
@@ -319,6 +508,7 @@ function App() {
             <li><span>01</span>连接钱包</li>
             <li><span>02</span>部署合约</li>
             <li><span>03</span>完成转账</li>
+            <li><span>04</span>记录学习</li>
           </ol>
         </div>
       </section>
@@ -360,6 +550,7 @@ function App() {
                 <p className="small-label">当前测试账户</p>
                 <strong className="address-display">{shortAddress(account)}</strong>
                 <p className="muted">Chain ID · {chainId || '读取中'}</p>
+                <p className="wallet-balance">SepoliaETH 余额 · <strong>{nativeBalance ? displayEthAmount(nativeBalance) : '读取中'}</strong></p>
               </>
             ) : (
               <>
@@ -391,6 +582,13 @@ function App() {
             <button className="button button--ghost" type="button" onClick={disconnectWallet}>断开页面连接</button>
           )}
         </div>
+        {fundingWarning && (
+          <div className="funding-warning" role="alert">
+            <strong>测试 ETH 不足，暂时不能部署</strong>
+            <p>{fundingWarning}</p>
+            <a href="https://ethereum.org/en/developers/docs/networks/#sepolia" target="_blank" rel="noreferrer">查看 Sepolia 测试币获取方式 ↗</a>
+          </div>
+        )}
       </section>
 
       <section className="story-card section-card" aria-labelledby="deploy-heading">
@@ -506,6 +704,106 @@ function App() {
         </div>
       </section>
 
+      <section className="story-card section-card notebook-panel" aria-labelledby="notebook-heading">
+        <div className="section-heading">
+          <div>
+            <p className="step-label">STEP 05</p>
+            <h2 id="notebook-heading">Erxiao 链上学习笔记</h2>
+            <p>部署属于你的第二份合约，把 Web3 学习记录写入 Sepolia，并练习合约状态的增删改读。</p>
+          </div>
+          <span className="icon-box icon-box--purple"><Icon name="notebook" /></span>
+        </div>
+
+        <div className="notebook-shell">
+          <div className="notebook-overview">
+            <span className={`status-pill ${notebookAddress ? 'status-pill--success' : 'status-pill--neutral'}`}>
+              {notebookAddress ? '记事本已部署' : '等待部署第二份合约'}
+            </span>
+            <h3>{notebookAddress ? '你的公开学习档案已就绪' : '创建一份属于你的链上记事本'}</h3>
+            <p>每个钱包拥有独立笔记列表；只有作者可以编辑或移除自己的笔记，但任何人都能读取公开内容。</p>
+            <div className="privacy-warning">
+              <strong>写入前请确认</strong>
+              <p>区块链历史无法真正删除。请勿填写姓名、电话、地址、私钥、助记词或其他敏感信息。</p>
+            </div>
+            {notebookAddress ? (
+              <div className="notebook-contract">
+                <span>ErxiaoNotebook 合约</span>
+                <strong>{shortAddress(notebookAddress)}</strong>
+                <p>{notebookAddress}</p>
+                <div className="button-row">
+                  <a className="button button--secondary" href={`https://sepolia.etherscan.io/address/${notebookAddress}`} target="_blank" rel="noreferrer">在 Etherscan 查看</a>
+                  <button className="text-button" type="button" onClick={forgetNotebook}>移除本机记录</button>
+                </div>
+              </div>
+            ) : (
+              <button className="button button--web3 notebook-deploy-button" type="button" onClick={deployNotebook} disabled={!account || !isSepolia || isDeployingNotebook}>
+                {isDeployingNotebook ? '等待部署确认…' : '部署 ErxiaoNotebook'}
+              </button>
+            )}
+          </div>
+
+          <form className="note-form" onSubmit={saveNote}>
+            <div>
+              <p className="small-label">{editingNoteId === null ? '新增公开学习笔记' : `正在编辑笔记 #${editingNoteId + 1}`}</p>
+              <h3>{editingNoteId === null ? '今天学会了什么？' : '更新这条链上记录'}</h3>
+            </div>
+            <label>
+              <span className="sr-only">学习笔记内容</span>
+              <textarea
+                value={noteDraft}
+                onChange={(event) => setNoteDraft(event.target.value)}
+                placeholder="例如：今天完成了 ERXIAO 合约的部署与测试转账"
+                aria-invalid={noteByteCount > MAX_NOTE_BYTES}
+                disabled={!notebookAddress || isSavingNote}
+              />
+            </label>
+            <div className="note-form__meta">
+              <span>内容会永久公开</span>
+              <strong className={noteByteCount > MAX_NOTE_BYTES ? 'byte-count--error' : ''}>{noteByteCount} / {MAX_NOTE_BYTES} 字节</strong>
+            </div>
+            <div className="button-row">
+              <button className="button button--primary" type="submit" disabled={!account || !isSepolia || !notebookAddress || !noteDraft.trim() || noteByteCount > MAX_NOTE_BYTES || isSavingNote}>
+                {isSavingNote ? '等待链上确认…' : editingNoteId === null ? '写入 Sepolia' : '保存链上修改'}
+              </button>
+              {editingNoteId !== null && <button className="button button--ghost" type="button" onClick={cancelEditingNote}>取消编辑</button>}
+            </div>
+          </form>
+        </div>
+
+        {notebookAddress && (
+          <div className="notes-section">
+            <div className="notes-section__heading">
+              <div>
+                <p className="small-label">CURRENT WALLET NOTES</p>
+                <h3>当前钱包的学习记录</h3>
+              </div>
+              <span>{notes.filter((note) => !note.removed).length} 条公开笔记</span>
+            </div>
+            {notes.some((note) => !note.removed) ? (
+              <div className="notes-grid">
+                {notes.filter((note) => !note.removed).map((note) => (
+                  <article className="note-card" key={note.id}>
+                    <div className="note-card__topline">
+                      <span>NOTE #{note.id + 1}</span>
+                      <time dateTime={new Date(Number(note.updatedAt) * 1000).toISOString()}>{displayNoteTime(note.updatedAt)}</time>
+                    </div>
+                    <p>{note.content}</p>
+                    <div className="button-row">
+                      <button className="button button--secondary" type="button" onClick={() => startEditingNote(note)}>编辑</button>
+                      <button className="button button--danger" type="button" onClick={() => removeNote(note.id)} disabled={removingNoteId === note.id}>
+                        {removingNoteId === note.id ? '等待确认…' : '软删除'}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-notes">还没有公开笔记。完成一次写入后，链上记录会显示在这里。</div>
+            )}
+          </div>
+        )}
+      </section>
+
       <section className={`global-message ${message ? 'global-message--visible' : ''}`} aria-live="polite">
         <span className="live-dot" />
         <div>
@@ -528,12 +826,13 @@ function App() {
             <li>Hardhat 编译 Solidity 0.8.24 合约并生成部署字节码</li>
             <li>等待 transaction receipt 后再更新页面状态</li>
             <li>读取 ERC‑20 余额、添加钱包资产并完成 transfer</li>
+            <li>独立记事本合约支持公开笔记的新增、编辑、软删除与读取</li>
           </ul>
         </div>
         <div className="footer-card">
           <span className="icon-box"><Icon name="code" /></span>
           <strong>完整链上闭环</strong>
-          <p>连接 → 切链 → 部署 → 读取 → 转账，每一步都由真实 Sepolia 数据驱动。</p>
+          <p>连接 → 切链 → 部署 → 读取 → 转账 → 记录，每一步都由真实 Sepolia 数据驱动。</p>
           <a href="https://sepolia.etherscan.io/" target="_blank" rel="noreferrer">打开 Sepolia Etherscan ↗</a>
         </div>
       </footer>
